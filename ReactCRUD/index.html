@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quản lý người dùng</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#172b45;background:#f3f6fb;font-size:16px;color-scheme:light}
+    *{box-sizing:border-box}body{margin:0}button,input{font:inherit}button{cursor:pointer;border:1px solid #ccd6e2;border-radius:9px;background:white;color:#253b55;padding:10px 15px;font-weight:600}button:hover{background:#edf2f9}button:disabled{opacity:.55;cursor:wait}button.primary{background:#245ade;border-color:#245ade;color:white}button.primary:hover{background:#1948bd}button.danger{color:#b32337;background:#fff5f5;border-color:#f0c9cf}button:focus-visible,input:focus-visible{outline:3px solid #92b4ff;outline-offset:3px}
+    main{max-width:1400px;margin:auto;padding:52px 30px}header{margin-bottom:30px}.eyebrow{color:#245ade;font-size:.85rem;font-weight:750;letter-spacing:.1em}h1{font-size:clamp(1.8rem,4vw,2.7rem);letter-spacing:-.04em;margin:10px 0}header p{color:#5d6d82;margin:0;line-height:1.6}.toolbar{display:flex;gap:16px;justify-content:space-between;align-items:center;margin-bottom:22px}.search{max-width:530px;flex:1}.search label{display:block;font-size:.9rem;font-weight:600;margin-bottom:7px}input{width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:11px 12px;color:#172b45;background:white}.toolbar>div:last-child{align-self:flex-end}.card{border:1px solid #dde4ee;background:white;border-radius:14px;overflow:hidden;box-shadow:0 8px 28px #26395706}.table-heading{padding:20px 22px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid #e4eaf2}.table-heading h2{font-size:1.1rem;margin:0}.count{color:#586b84;font-size:.9rem}.scroll{overflow:auto}table{width:100%;border-collapse:collapse;text-align:left;min-width:1000px}th{background:#f8fafd;color:#51627a;font-size:.85rem;padding:15px 18px;white-space:nowrap}td{padding:17px 18px;border-top:1px solid #e9edf3;font-size:.9rem;line-height:1.5}tbody tr:hover{background:#fafcff}.person{font-weight:650;color:#1b3150}.muted{color:#64748b}.actions{display:flex;gap:7px}.actions button{padding:7px 11px;font-size:.85rem}.empty{padding:48px 20px;text-align:center;color:#64748b}.notice{padding:14px 18px;margin:0 0 18px;border-radius:9px;background:#eaf6ef;color:#246442}.error{background:#fff0f0;color:#9b2635}.error button{margin-left:12px}.footnote{font-size:.85rem;color:#64748b;line-height:1.6;margin-top:18px}
+    dialog{width:min(620px,calc(100% - 32px));max-height:90vh;border:1px solid #d8e0eb;border-radius:16px;padding:0;color:#172b45;box-shadow:0 20px 90px #10203e44}dialog::backdrop{background:#10203e88}dialog form{padding:26px}dialog h2{margin:0 0 8px;font-size:1.4rem}.help{color:#64748b;font-size:.9rem;margin:0 0 22px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:16px}.field label{display:block;margin-bottom:7px;font-size:.9rem;font-weight:600}.modal-actions{display:flex;justify-content:flex-end;gap:10px;border-top:1px solid #e5eaf1;margin-top:24px;padding-top:20px}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+    @media(max-width:600px){main{padding:28px 16px}.toolbar{align-items:stretch;flex-direction:column}.search{max-width:none}.toolbar>div:last-child{align-self:stretch}.toolbar>div:last-child>button{width:100%}.fields{grid-template-columns:1fr}dialog form{padding:20px}.table-heading{align-items:flex-start;flex-direction:column;gap:7px}}
+  </style>
+  <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"><p style="padding:30px">Đang tải ứng dụng…</p></div>
+  <noscript>Vui lòng bật JavaScript để sử dụng ứng dụng.</noscript>
+  <script type="text/babel">
+    // Cấu trúc theo đề: App → SearchForm, AddUser, ResultTable.
+    const blankUser = () => ({name:"",username:"",email:"",address:{street:"",suite:"",city:""},phone:"",website:""});
+    const fields = [["name","Họ và tên",true],["username","Tên đăng nhập",true],["email","Email"],["phone","Điện thoại"],["street","Đường"],["suite","Căn hộ / Số nhà"],["city","Thành phố"],["website","Website"]];
+    const addressKeys = ["street","suite","city"];
+    function changeField(current, key, value) {
+      return addressKeys.includes(key) ? {...current,address:{...current.address,[key]:value}} : {...current,[key]:value};
+    }
+    // Hàm dựng các trường dùng chung; không thêm component vào cây của bài tập.
+    function renderFields(user,onChange,prefix) {
+      return fields.map(([key,label,required]) => (
+        <div className="field" key={key}>
+          <label htmlFor={`${prefix}-${key}`}>{label}{required && " *"}</label>
+          <input id={`${prefix}-${key}`} name={key} required={!!required} type={key === "email" ? "email" : "text"}
+            value={(addressKeys.includes(key) ? user.address?.[key] : user[key]) ?? ""}
+            onChange={e=>onChange(key,e.target.value)} />
+        </div>
+      ));
+    }
+
+    function SearchForm({onChangeValue}) {
+      return <div className="search"><label htmlFor="keyword">Tìm kiếm người dùng</label>
+        <input id="keyword" type="search" placeholder="Tìm theo họ tên hoặc tên đăng nhập" onChange={e=>onChangeValue(e.target.value)} /></div>;
+    }
+
+    function AddUser({onAdd}) {
+      const [adding,setAdding] = React.useState(false);
+      const [user,setUser] = React.useState(blankUser);
+      const dialog = React.useRef(null);
+      React.useEffect(()=>{if(adding) dialog.current?.showModal();},[adding]);
+      function handleAdd(e) {
+        e.preventDefault();
+        if(!user.name.trim() || !user.username.trim()) {alert("Vui lòng nhập Họ và tên và Tên đăng nhập!");return;}
+        onAdd({...user,name:user.name.trim(),username:user.username.trim()});
+        setUser(blankUser());setAdding(false);
+      }
+      return <div><button className="primary" onClick={()=>setAdding(true)}>Thêm người dùng</button>
+        {adding && <dialog ref={dialog} aria-labelledby="add-title" onCancel={()=>setAdding(false)}>
+          <form onSubmit={handleAdd}><h2 id="add-title">Thêm người dùng</h2><p className="help">Các trường có dấu * là bắt buộc.</p>
+            <div className="fields">{renderFields(user,(key,value)=>setUser(prev=>changeField(prev,key,value)),"add")}</div>
+            <div className="modal-actions"><button type="button" onClick={()=>setAdding(false)}>Hủy</button><button className="primary" type="submit">Thêm người dùng</button></div>
+          </form></dialog>}
+      </div>;
+    }
+
+    function ResultTable({keyword,user,onAdded}) {
+      const [users,setUsers] = React.useState([]);
+      const [loading,setLoading] = React.useState(true);
+      const [error,setError] = React.useState("");
+      const [attempt,setAttempt] = React.useState(0);
+      const [editing,setEditing] = React.useState(null);
+      const [notice,setNotice] = React.useState("");
+      const editDialog = React.useRef(null);
+      const handledUser = React.useRef(null);
+      React.useEffect(()=>{
+        const controller = new AbortController();
+        setLoading(true);setError("");
+        fetch("https://jsonplaceholder.typicode.com/users",{signal:controller.signal})
+          .then(res=>{if(!res.ok) throw new Error(`HTTP ${res.status}`);return res.json();})
+          .then(data=>{
+            if(!Array.isArray(data)) throw new Error("Dữ liệu không hợp lệ");
+            // Giữ các bản ghi được thêm trong lúc API đang tải.
+            setUsers(prev=>[...data,...prev.filter(item=>!data.some(initial=>initial.id===item.id))]);
+            setLoading(false);
+          })
+          .catch(err=>{if(err.name!=="AbortError"){setError("Không tải được danh sách. Kiểm tra kết nối Internet và thử lại.");setLoading(false);}});
+        return ()=>controller.abort();
+      },[attempt]);
+      React.useEffect(()=>{
+        if(user && handledUser.current!==user) {
+          handledUser.current=user;
+          // ID riêng cho bản ghi mới, không phụ thuộc độ dài mảng.
+          const id=`local-${crypto.randomUUID()}`;
+          setUsers(prev=>[...prev,{...user,address:{...user.address},id}]);
+          setNotice(`Đã thêm ${user.name}.`);onAdded();
+        }
+      },[user,onAdded]);
+      React.useEffect(()=>{if(editing && !editDialog.current?.open) editDialog.current?.showModal();},[editing]);
+      const term=keyword.trim().toLowerCase();
+      const filteredUsers=users.filter(u=>u.name.toLowerCase().includes(term)||u.username.toLowerCase().includes(term));
+      function editUser(selected) {setEditing({...selected,address:{...selected.address}});}
+      function saveUser(e) {
+        e.preventDefault();
+        if(!editing.name.trim()||!editing.username.trim()){alert("Vui lòng nhập Họ và tên và Tên đăng nhập!");return;}
+        const saved={...editing,name:editing.name.trim(),username:editing.username.trim()};
+        setUsers(prev=>prev.map(u=>u.id===saved.id?saved:u));setEditing(null);setNotice(`Đã cập nhật ${saved.name}.`);
+      }
+      function removeUser(id) {setUsers(prev=>prev.filter(u=>u.id!==id));setNotice("Đã xóa người dùng.");}
+      return <>
+        {notice && <p className="notice" role="status">{notice}</p>}
+        {error && <div className="notice error" role="alert">{error}<button onClick={()=>setAttempt(n=>n+1)}>Thử lại</button></div>}
+        <section className="card" aria-labelledby="list-title" aria-busy={loading}>
+          <div className="table-heading"><h2 id="list-title">Danh sách người dùng</h2><span className="count">{filteredUsers.length} / {users.length} người dùng</span></div>
+          <div className="scroll"><table><thead><tr><th scope="col">ID</th><th scope="col">Họ và tên</th><th scope="col">Tên đăng nhập</th><th scope="col">Email</th><th scope="col">Địa chỉ</th><th scope="col">Điện thoại</th><th scope="col">Thao tác</th></tr></thead>
+            <tbody>{filteredUsers.map(u=><tr key={u.id}>
+              <td className="muted" style={{maxWidth:140,overflowWrap:"anywhere"}}>{u.id}</td><td className="person">{u.name}</td><td>{u.username}</td><td>{u.email||"—"}</td>
+              <td>{[u.address?.street,u.address?.suite,u.address?.city].filter(Boolean).join(", ")||"—"}</td><td>{u.phone||"—"}</td>
+              <td><div className="actions"><button aria-label={`Sửa ${u.name}`} onClick={()=>editUser(u)}>Sửa</button><button className="danger" aria-label={`Xóa ${u.name}`} onClick={()=>removeUser(u.id)}>Xóa</button></div></td>
+            </tr>)}</tbody></table></div>
+          {loading && <div className="empty" role="status">Đang tải danh sách…</div>}
+          {!loading && !filteredUsers.length && <div className="empty">{keyword.trim()?"Không tìm thấy người dùng phù hợp.":"Danh sách chưa có người dùng."}</div>}
+        </section>
+        {editing && <dialog ref={editDialog} aria-labelledby="edit-title" onCancel={()=>setEditing(null)}><form onSubmit={saveUser}>
+          <h2 id="edit-title">Chỉnh sửa người dùng</h2><p className="help">Các trường có dấu * là bắt buộc.</p>
+          <div className="fields">{renderFields(editing,(key,value)=>setEditing(prev=>changeField(prev,key,value)),"edit")}</div>
+          <div className="modal-actions"><button type="button" onClick={()=>setEditing(null)}>Hủy</button><button className="primary" type="submit">Lưu thay đổi</button></div>
+        </form></dialog>}
+      </>;
+    }
+
+    function App() {
+      const [kw,setKeyword] = React.useState("");
+      const [newUser,setNewUser] = React.useState(null);
+      const onAdded = React.useCallback(()=>setNewUser(null),[]);
+      return <main><header><h1>Quản lý người dùng</h1></header>
+        <div className="toolbar"><SearchForm onChangeValue={setKeyword}/><AddUser onAdd={setNewUser}/></div>
+        <ResultTable keyword={kw} user={newUser} onAdded={onAdded}/>
+      </main>;
+    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  </script>
+</body>
+</html>
